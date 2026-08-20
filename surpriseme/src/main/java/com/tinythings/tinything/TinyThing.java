@@ -57,4 +57,7 @@ public class TinyThing implements Persistable<UUID> {
     void markNotNew() {
         this.isNew = false;
     }
+
+    @Column(nullable = false)
+    private String source = "seed"; // seed | ai
 }

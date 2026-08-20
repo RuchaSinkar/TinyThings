@@ -4,14 +4,17 @@ import java.util.List;
 import java.util.UUID;
 
 public record TinyThingResponse(
+        UUID historyId,
         UUID id,
         String title,
         String description,
         String category,
         List<String> tags
 ) {
-    static TinyThingResponse from(TinyThing t) {
+    static TinyThingResponse from(UserTinyThingHistory history) {
+        TinyThing t = history.getTinyThing();
         return new TinyThingResponse(
+                history.getId(),
                 t.getId(),
                 t.getTitle(),
                 t.getDescription(),

@@ -3,6 +3,7 @@ import { LoginPage } from './auth/LoginPage';
 import { SignupPage } from './auth/SignupPage';
 import { HomePage } from './pages/HomePage';
 import { OnboardingFlow } from './onboarding/OnboardingFlow';
+import { SettingsPage } from './settings/SettingsPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 
 export default function App() {
@@ -16,6 +17,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <OnboardingFlow />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

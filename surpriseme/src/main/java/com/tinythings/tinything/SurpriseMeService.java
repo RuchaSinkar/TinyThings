@@ -1,5 +1,7 @@
 package com.tinythings.tinything;
 
+import com.tinythings.user.Tag;
+import com.tinythings.user.TagRepository;
 import com.tinythings.user.UserProfile;
 import com.tinythings.user.UserProfileRepository;
 import org.springframework.stereotype.Service;
@@ -19,15 +21,62 @@ public class SurpriseMeService {
     private final UserProfileRepository userProfileRepository;
     private final UserTinyThingHistoryRepository historyRepository;
     private final Random random = new Random();
-
+    private final AiTinyThingService aiTinyThingService;
+    private final TagRepository tagRepository;
     public SurpriseMeService(
             TinyThingRepository tinyThingRepository,
             UserProfileRepository userProfileRepository,
-            UserTinyThingHistoryRepository historyRepository
+            UserTinyThingHistoryRepository historyRepository, AiTinyThingService aiTinyThingService, TagRepository tagRepository
     ) {
         this.tinyThingRepository = tinyThingRepository;
         this.userProfileRepository = userProfileRepository;
         this.historyRepository = historyRepository;
+        this.aiTinyThingService = aiTinyThingService;
+        this.tagRepository = tagRepository;
+    }
+
+    @Transactional
+    public TinyThing pickSurpriseForWithAi(UUID userId) {
+        UserProfile profile = userProfileRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Profile not found"));
+
+        List<String> interestNames = profile.getTags().stream().map(Tag::getName).toList();
+
+        var generated = aiTinyThingService.generate(
+                profile.getRole(),
+                profile.getField(),
+                interestNames,
+                profile.getFocusAreas(),
+                profile.getGoalsText()
+        );
+
+        System.out.println("AI generated present = " + generated.isPresent());
+
+        if (generated.isPresent()) {
+            return persistAiGenerated(generated.get());
+        }
+
+        // Fallback: AI unavailable/failed, use existing seed-based picker
+        return pickSurpriseFor(userId);
+    }
+
+    private TinyThing persistAiGenerated(AiTinyThingService.GeneratedThing g) {
+        TinyThing thing = new TinyThing();
+        thing.setId(UUID.randomUUID());
+        thing.setTitle(g.title());
+        thing.setDescription(g.description());
+        thing.setCategory(g.category());
+        thing.setTimeOfDay("any");
+        thing.setDifficulty("easy");
+        thing.setSource("ai");
+
+        Set<Tag> tags = g.tags().stream()
+                .map(name -> tagRepository.findByName(name)
+                        .orElseGet(() -> tagRepository.save(new Tag(name))))
+                .collect(Collectors.toSet());
+        thing.setTags(tags);
+
+        return tinyThingRepository.save(thing);
     }
 
     @Transactional(readOnly = true)

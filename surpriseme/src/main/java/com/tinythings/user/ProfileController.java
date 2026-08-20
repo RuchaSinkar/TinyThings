@@ -31,4 +31,13 @@ public class ProfileController {
         UUID userId = (UUID) authentication.getPrincipal();
         return ResponseEntity.ok(profileService.getProfile(userId));
     }
+
+    @PatchMapping("/interests")
+    public ResponseEntity<ProfileResponse> updateInterests(
+            @RequestBody UpdateInterestsRequest request,
+            Authentication authentication
+    ) {
+        UUID userId = (UUID) authentication.getPrincipal();
+        return ResponseEntity.ok(profileService.updateInterests(userId, request.interests()));
+    }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE tiny_thing ADD COLUMN source VARCHAR(20) NOT NULL DEFAULT 'seed';

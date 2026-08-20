@@ -76,4 +76,17 @@ public class ProfileService {
                 profile.isOnboardingCompleted()
         );
     }
+    @Transactional
+    public ProfileResponse updateInterests(UUID userId, List<String> interests) {
+        UserProfile profile = userProfileRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Profile not found"));
+
+        Set<Tag> tags = interests.stream()
+                .map(this::findOrCreateTag)
+                .collect(Collectors.toSet());
+        profile.setTags(tags);
+
+        userProfileRepository.save(profile);
+        return toResponse(profile);
+    }
 }
