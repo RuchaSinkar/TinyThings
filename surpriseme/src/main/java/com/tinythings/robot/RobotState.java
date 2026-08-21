@@ -45,4 +45,7 @@ public class RobotState implements Persistable<UUID> {
     void markNotNew() {
         this.isNew = false;
     }
+
+    @Column(name = "avatar_id", nullable = false)
+    private String avatarId = "robot";
 }

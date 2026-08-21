@@ -16,6 +16,7 @@ public class AiTinyThingService {
     private final String apiKey;
     private final String model;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Random random = new Random();
 
     public AiTinyThingService(
             @Value("${groq.api-key}") String apiKey,
@@ -48,7 +49,7 @@ public class AiTinyThingService {
             return Optional.empty();
         }
 
-        String prompt = buildPrompt(role, field, interests, focusAreas, goalsText);
+        String prompt = buildPrompt(role, field, interests, focusAreas, goalsText, pickCategory());
 
         try {
 
@@ -81,47 +82,74 @@ public class AiTinyThingService {
         }
     }
 
+    /**
+     * Explicitly rotates categories so gratitude/hydration/goal/general/interest
+     * all get fair representation, instead of leaving it to the AI's judgment
+     * (which tends to drift toward whatever the profile's interests suggest).
+     */
+    private String pickCategory() {
+        int roll = random.nextInt(100);
+        if (roll < 25) return "gratitude";       // guaranteed 25% of the time
+        if (roll < 40) return "hydration-adjacent"; // light nudge, not literal water logging
+        if (roll < 55) return "goal";
+        if (roll < 70) return "general";
+        return "interest";                        // remaining chance: pull from user's interests
+    }
+
     private String buildPrompt(
             String role,
             String field,
             List<String> interests,
             String focusAreas,
-            String goalsText
+            String goalsText,
+            String category
     ) {
 
+        String interestsList = interests != null && !interests.isEmpty()
+                ? String.join(", ", interests)
+                : "general wellbeing";
+
+        String categoryInstruction = switch (category) {
+            case "gratitude" -> "Generate a GRATITUDE action: something about noticing, appreciating, or expressing thanks for something small. Category must be \"gratitude\".";
+            case "hydration-adjacent" -> "Generate a simple PHYSICAL/WELLNESS action unrelated to any specific skill - like a stretch, a breath, or drinking water. Category must be \"general\".";
+            case "goal" -> "Generate a small PRODUCTIVITY action that helps make progress on something, unrelated to any specific skill. Category must be \"goal\".";
+            case "general" -> "Generate a simple, universal action anyone could do, regardless of interests. Category must be \"general\".";
+            default -> "Generate an action based specifically on ONE of the user's interests below, picked at random. Category must be \"general\".";
+        };
+
         return """
-                You generate tiny, delightful 1-5 minute actions
-                for an app called "Tiny Things".
+            You generate tiny, delightful 1-5 minute actions
+            for an app called "Tiny Things".
 
-                Generate ONE action for this user:
+            %s
 
-                Role: %s
-                Field: %s
-                Interests: %s
-                Focus areas: %s
-                Goals: %s
+            IMPORTANT - keep it SIMPLE:
+            - No jargon, no technical terms, no special skills or setup required
+            - Something a complete beginner could do immediately, in plain everyday language
+            - Avoid anything that requires prior knowledge, tools, or expertise
+            - Think "step outside for a second" not "refactor a function"
+            - Give Emotional touch to it, so that it can bring a smile on user's face whenever he/she sees it
 
-                The action should:
-                - take between 1 and 5 minutes
-                - be genuinely useful or delightful
-                - feel personalized
-                - not feel like generic motivational advice
-                - be realistic for the user's profile
+            User context (use only if directly relevant to the instruction above):
+            - Role: %s
+            - Field: %s
+            - Interests: %s
+            - Focus areas: %s
+            - Long-term goal: %s
 
-                Respond with ONLY the raw JSON object below. No markdown, no code fences, no explanation, no extra text before or after. Just the JSON object itself, starting with { and ending with }.
+            Respond with ONLY the raw JSON object below. No markdown, no code fences, no explanation, no extra text before or after. Just the JSON object itself, starting with { and ending with }.
 
-                {
-                  "title": "short punchy title, max 6 words",
-                  "description": "one encouraging sentence, max 20 words",
-                  "category": "hydration|gratitude|goal|general",
-                  "tags": ["1-3 lowercase tags"]
-                }
-                """.formatted(
+            {
+              "title": "short punchy title, max 6 words, plain language",
+              "description": "one simple encouraging sentence, max 20 words",
+              "category": "hydration|gratitude|goal|general",
+              "tags": ["1-3 lowercase tags"]
+            }
+            """.formatted(
+                categoryInstruction,
                 role != null ? role : "unspecified",
                 field != null ? field : "unspecified",
-                interests != null && !interests.isEmpty()
-                        ? String.join(", ", interests)
-                        : "general wellbeing",
+                interestsList,
                 focusAreas != null ? focusAreas : "none specified",
                 goalsText != null ? goalsText : "none specified"
         );

@@ -12,6 +12,12 @@ import java.util.UUID;
 public interface UserTinyThingHistoryRepository extends JpaRepository<UserTinyThingHistory, UUID> {
 
     @Query("""
+    SELECT COUNT(h) FROM UserTinyThingHistory h
+    WHERE h.user.id = :userId AND h.completed = true AND h.shownAt >= :since
+""")
+    long countCompletedSince(@Param("userId") UUID userId, @Param("since") Instant since);
+
+    @Query("""
         SELECT h.tinyThing.id FROM UserTinyThingHistory h
         WHERE h.user.id = :userId AND h.shownAt >= :since
     """)

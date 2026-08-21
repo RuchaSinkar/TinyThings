@@ -1,0 +1,1 @@
+ALTER TABLE robot_state ADD COLUMN avatar_id VARCHAR(20) NOT NULL DEFAULT 'robot';

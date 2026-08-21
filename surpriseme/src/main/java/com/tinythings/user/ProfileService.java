@@ -89,4 +89,28 @@ public class ProfileService {
         userProfileRepository.save(profile);
         return toResponse(profile);
     }
+
+
+    @Transactional
+    public ProfileResponse updateProfile(UUID userId, String name, List<String> interests, String field, String goalsText) {
+        UserProfile profile = userProfileRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Profile not found"));
+
+        if (name != null && !name.isBlank()) {
+            profile.setName(name);
+        }
+        if (field != null) {
+            profile.setField(field);
+        }
+        if (goalsText != null) {
+            profile.setGoalsText(goalsText);
+        }
+        if (interests != null) {
+            Set<Tag> tags = interests.stream().map(this::findOrCreateTag).collect(Collectors.toSet());
+            profile.setTags(tags);
+        }
+
+        userProfileRepository.save(profile);
+        return toResponse(profile);
+    }
 }

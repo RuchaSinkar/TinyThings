@@ -1,7 +1,9 @@
 package com.tinythings.home;
 
 import com.tinythings.robot.RobotEventService;
+import com.tinythings.robot.RobotState;
 import com.tinythings.robot.RobotStateRepository;
+import com.tinythings.tinything.UserTinyThingHistoryRepository;
 import com.tinythings.tracking.*;
 import com.tinythings.user.UserRepository;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,8 @@ public class HomeSummaryService {
     private final UserStreakRepository userStreakRepository;
     private final DailyGoalRepository goalRepository;
     private final GratitudeEntryRepository gratitudeRepository;
+    private final RobotStateRepository robotStateRepository;
+    private final UserTinyThingHistoryRepository historyRepository;
 
     public HomeSummaryService(
             UserRepository userRepository,
@@ -30,7 +34,7 @@ public class HomeSummaryService {
             HydrationLogRepository hydrationLogRepository,
             UserStreakRepository userStreakRepository,
             DailyGoalRepository goalRepository,
-            GratitudeEntryRepository gratitudeRepository
+            GratitudeEntryRepository gratitudeRepository, RobotStateRepository robotStateRepository, UserTinyThingHistoryRepository historyRepository
     ) {
         this.userRepository = userRepository;
         this.robotEventService = robotEventService;
@@ -38,6 +42,8 @@ public class HomeSummaryService {
         this.userStreakRepository = userStreakRepository;
         this.goalRepository = goalRepository;
         this.gratitudeRepository = gratitudeRepository;
+        this.robotStateRepository = robotStateRepository;
+        this.historyRepository = historyRepository;
     }
 
     @Transactional(readOnly = true)
@@ -46,6 +52,9 @@ public class HomeSummaryService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         String mood = robotEventService.getCurrentMood(userId, user.getLastActionAt());
+        String avatarId = robotStateRepository.findById(userId)
+                .map(RobotState::getAvatarId).orElse("robot");
+        String name = user.getProfile() != null ? user.getProfile().getName() : null;
 
         int hydrationCount = hydrationLogRepository.findByUserIdAndLogDate(userId, today)
                 .map(HydrationLog::getSlotCount).orElse(0);
@@ -64,11 +73,9 @@ public class HomeSummaryService {
                                         .collect(Collectors.toList())
                         ))
                         .collect(Collectors.toList());
+        Instant startOfToday = today.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+        int tinyThingsToday = (int) historyRepository.countCompletedSince(userId, startOfToday);
 
-        Instant since = Instant.now().truncatedTo(ChronoUnit.DAYS);
-        int gratitudeCount = gratitudeRepository
-                .findByUserIdAndCompletedAtAfterOrderByCompletedAtDesc(userId, since).size();
-
-        return new HomeSummaryResponse(mood, hydrationCount, 8, current, longest, goals, gratitudeCount);
+        return new HomeSummaryResponse(name, mood, avatarId, hydrationCount, 8, current, longest, goals, tinyThingsToday);
     }
 }
